@@ -5,7 +5,6 @@ pub struct ProcessTracer {
 	// プロセスリスト
 	procs: Vec<Process>,
 	// プロセストレース情報
-	active_proc: Option<Process>,
 	active_proc_idx: Option<usize>,
 	// CPU占有率
 	cpu_use_rate: f32,
@@ -18,7 +17,6 @@ impl ProcessTracer {
 	pub fn new<'a>(procs: Vec<Process>) -> ProcessTracer {
 		ProcessTracer {
 			procs: procs,
-			active_proc: None,
 			active_proc_idx: None,
 			cpu_use_rate: 0.0,
 			cpu_use_busy: 0,
@@ -29,6 +27,8 @@ impl ProcessTracer {
 	pub fn run(&mut self) {
 		// 計測時間作成
 		let timemax = 5 * 1000;
+		// プロセス初期設定
+		self.start_proc();
 		// 計測時間分のトレース開始
 		for cpu_time in 0..timemax {
 			// アクティブプロセスの終了チェック
@@ -37,6 +37,17 @@ impl ProcessTracer {
 			self.check_dispatch(cpu_time);
 			// 時間を進める
 			self.go_time(cpu_time, 1);
+			// CPU使用カウント
+			self.check_cpu_use();
+		}
+		// CPU占有率計算
+		let runtime = timemax as f32;
+		self.cpu_use_rate = self.cpu_use_busy as f32 / runtime * 100 as f32;
+	}
+
+	fn start_proc(&mut self) {
+		for proc in self.procs.iter_mut() {
+			proc.waiting(0);
 		}
 	}
 
@@ -45,7 +56,7 @@ impl ProcessTracer {
 			Some(_idx) => {
 				let proc = &mut self.procs[*_idx];
 				if proc.is_waiting() {
-					self.active_proc = None;
+					self.active_proc_idx = None;
 				}
 			},
 			None => ()
@@ -53,18 +64,25 @@ impl ProcessTracer {
 	}
 
 	fn check_dispatch(&mut self, cpu_time:i32) {
+		// READYプロセスから起動するプロセスを選択
 		let next_proc = self.get_prior_proc();
 		match next_proc {
-			Some(_proc) => {
-				// 現アクティブプロセスをREADYに
-				match &mut self.active_proc {
-					Some(_active_proc) => {
-						_active_proc.preempt(cpu_time);
+			Some(_next_proc_idx) => {
+				// 現アクティブプロセスがいればREADYに
+				match &mut self.active_proc_idx {
+					Some(_active_proc_idx) => {
+						let active_proc = &mut self.procs[*_active_proc_idx];
+						active_proc.preempt(cpu_time);
 					},
 					None => {
-
+						// 何もしない
 					}
 				}
+				// アクティブプロセス更新
+				self.active_proc_idx = next_proc;
+				// 新アクティブプロセスをディスパッチ
+				let next_proc = &mut self.procs[_next_proc_idx];
+				next_proc.dispatch(cpu_time);
 			},
 			None => {
 				// 何もしない
@@ -150,6 +168,8 @@ impl ProcessTracer {
 					None => {
 						// 初回出現は無条件セット
 						result = Some(i);
+						max_pri = proc.priority;
+						max_ready = proc.timer_ready;
 					}
 				}
 			}
@@ -159,11 +179,19 @@ impl ProcessTracer {
 	}
 
 	fn go_time(&mut self, cpu_time:i32, elapse:i32) {
-		match &mut self.active_proc {
-			Some(_proc) => {
-				_proc.go(cpu_time, elapse);
+		for proc in self.procs.iter_mut() {
+			proc.go(cpu_time+1, elapse);
+		}
+	}
+
+	fn check_cpu_use(&mut self) {
+		match &mut self.active_proc_idx {
+			Some(_idx) => {
+				self.cpu_use_busy += 1;
 			},
-			None => ()
+			None => {
+				self.cpu_use_idle += 1;
+			}
 		}
 	}
 }

@@ -11,6 +11,16 @@ pub enum ProcessState {
 	READY,
 	RUNNING,
 }
+impl std::fmt::Display for ProcessState {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match *self {
+			ProcessState::DORMANT => write!(f,"DORMANT"),
+			ProcessState::WAITING => write!(f,"WAITING"),
+			ProcessState::READY => write!(f,"READY"),
+			ProcessState::RUNNING => write!(f,"RUNNING"),
+		}
+	}
+}
 
 type LogCallback = fn(
 	name: &'static str,				// プロセス名
@@ -132,11 +142,11 @@ impl Process {
 	fn check_state(&mut self, cpu_time:i32, elapse:i32) {
 		// 状態毎処理
 		match self.state {
-			// WAITINGでは処理なし
+			// WAITING処理
 			ProcessState::WAITING => self.check_state_waiting(cpu_time),
-			// READY中に次の起動周期が来てしまったため、処理つぶれが発生している
+			// READY処理
 			ProcessState::READY => self.check_state_ready(elapse),
-			// RUNNING中に次の起動周期が来てしまったため、処理つぶれが発生している
+			// RUNNING処理
 			ProcessState::RUNNING => self.check_state_running(cpu_time, elapse),
 			// DORMANTは不使用
 			ProcessState::DORMANT => self.check_state_dormant(),
