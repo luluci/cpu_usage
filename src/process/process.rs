@@ -24,6 +24,7 @@ impl std::fmt::Display for ProcessState {
 
 type LogCallback = fn(
 	name: &'static str,				// プロセス名
+	id: i32,						// プロセスID
 	state: &ProcessState,			// プロセス状態
 	log_cpu_time_begin: i32,		// 状態開始時CPU時間
 	log_cpu_time_end: i32,			// 状態終了時CPU時間
@@ -32,6 +33,7 @@ type LogCallback = fn(
 
 pub struct Process {
 	// プロセス情報
+	pub id: i32,					// プロセスID
 	pub kind: ProcessKind,			// プロセス種類
 	pub priority: i32,				// 優先度
 	pub multi_intr: bool,			// 多重割込み許可
@@ -55,6 +57,7 @@ impl Process {
 	// コンストラクタ
 	pub fn new(kind: ProcessKind, name: &'static str, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: LogCallback) -> Process {
 		Process{
+			id: -1,
 			kind: kind,
 			priority: priority,
 			multi_intr: multi_intr,
@@ -75,6 +78,7 @@ impl Process {
 	// INTRプロセスファクトリ
 	pub fn intr(name: &'static str, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: LogCallback) -> Process {
 		Process{
+			id: -1,
 			kind: ProcessKind::INTR,
 			priority: priority,
 			multi_intr: multi_intr,
@@ -95,6 +99,7 @@ impl Process {
 	// TASKプロセスファクトリ
 	pub fn task(name: &'static str, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: LogCallback) -> Process {
 		Process{
+			id: -1,
 			kind: ProcessKind::TASK,
 			priority: priority,
 			multi_intr: multi_intr,
@@ -266,6 +271,7 @@ impl Process {
 		// ログを通知
 		(self.log_callback)(
 			self.name,
+			self.id,
 			&self.state,
 			self.log_cpu_time,
 			cpu_time,

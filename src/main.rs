@@ -4,7 +4,7 @@ use cpu_usage::process::process::ProcessKind;
 use cpu_usage::process::process::ProcessState;
 use cpu_usage::process::process_tracer::ProcessTracer;
 
-fn log(name: &'static str, state: &ProcessState, log_cpu_time_begin: i32, log_cpu_time_end: i32, log_cycle_delayed: bool,) {
+fn log(name: &'static str, id: i32, state: &ProcessState, log_cpu_time_begin: i32, log_cpu_time_end: i32, log_cycle_delayed: bool,) {
 	let delay = {
 		if log_cycle_delayed {
 			"Delayed!"
@@ -21,5 +21,5 @@ fn main() {
 	procs_vec.push(Process::new(ProcessKind::INTR, "proc2", 2, true, 500, [100].to_vec(), log));
 	let mut tracer = ProcessTracer::new(procs_vec);
 	tracer.run();
-	println!("Hello, world!");
+	println!("CPU占有率: {}", tracer.cpu_use_rate);
 }

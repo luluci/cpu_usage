@@ -7,7 +7,7 @@ pub struct ProcessTracer {
 	// プロセストレース情報
 	active_proc_idx: Option<usize>,
 	// CPU占有率
-	cpu_use_rate: f32,
+	pub cpu_use_rate: f32,
 	cpu_use_busy: i32,
 	cpu_use_idle: i32,
 }
@@ -15,13 +15,20 @@ pub struct ProcessTracer {
 impl ProcessTracer {
 	// コンストラクタ
 	pub fn new<'a>(procs: Vec<Process>) -> ProcessTracer {
-		ProcessTracer {
+		let mut data = ProcessTracer {
 			procs: procs,
 			active_proc_idx: None,
 			cpu_use_rate: 0.0,
 			cpu_use_busy: 0,
 			cpu_use_idle: 0,
+		};
+
+		// プロセスIDを設定
+		for (idx, _proc) in data.procs.iter_mut().enumerate() {
+			_proc.id = idx as i32;
 		}
+
+		data
 	}
 
 	pub fn run(&mut self) {
