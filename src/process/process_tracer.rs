@@ -1,9 +1,12 @@
 use crate::process::process::ProcessKind;
 use crate::process::process::Process;
+use crate::process::process_callback::ProcessCallback;
 
-pub struct ProcessTracer {
+pub struct ProcessTracer<T>
+	where T: ProcessCallback
+{
 	// プロセスリスト
-	procs: Vec<Process>,
+	pub procs: Vec<Process<T>>,
 	// プロセストレース情報
 	active_proc_idx: Option<usize>,
 	// CPU占有率
@@ -12,9 +15,11 @@ pub struct ProcessTracer {
 	cpu_use_idle: i32,
 }
 
-impl ProcessTracer {
+impl<T> ProcessTracer<T>
+	where T: ProcessCallback
+{
 	// コンストラクタ
-	pub fn new<'a>(procs: Vec<Process>) -> ProcessTracer {
+	pub fn new<'a>(procs: Vec<Process<T>>) -> ProcessTracer<T> {
 		let mut data = ProcessTracer {
 			procs: procs,
 			active_proc_idx: None,

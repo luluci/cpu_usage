@@ -1,37 +1,14 @@
-
+use crate::process::process_state::ProcessState;
+use crate::process::process_callback::ProcessCallback;
 
 pub enum ProcessKind {
 	INTR,
 	TASK,
 }
 
-pub enum ProcessState {
-	DORMANT,
-	WAITING,
-	READY,
-	RUNNING,
-}
-impl std::fmt::Display for ProcessState {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		match *self {
-			ProcessState::DORMANT => write!(f,"DORMANT"),
-			ProcessState::WAITING => write!(f,"WAITING"),
-			ProcessState::READY => write!(f,"READY"),
-			ProcessState::RUNNING => write!(f,"RUNNING"),
-		}
-	}
-}
-
-type LogCallback = fn(
-	name: &'static str,				// プロセス名
-	id: i32,						// プロセスID
-	state: &ProcessState,			// プロセス状態
-	log_cpu_time_begin: i32,		// 状態開始時CPU時間
-	log_cpu_time_end: i32,			// 状態終了時CPU時間
-	log_cycle_delayed: bool,		// 処理遅延有無
-) -> ();
-
-pub struct Process {
+pub struct Process<T>
+	where T: ProcessCallback
+{
 	// プロセス情報
 	pub id: i32,					// プロセスID
 	pub kind: ProcessKind,			// プロセス種類
@@ -50,12 +27,14 @@ pub struct Process {
 	// ログ情報
 	log_cpu_time: i32,				// プロセス起動時CPU時間
 	log_cycle_delayed: bool,		// 処理遅延有無
-	log_callback: LogCallback,		// ログ生成時のコールバック関数
+	log_callback: T,				// ログ生成時のコールバック関数
 }
 
-impl Process {
+impl<T> Process<T>
+	where T: ProcessCallback
+{
 	// コンストラクタ
-	pub fn new(kind: ProcessKind, name: &'static str, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: LogCallback) -> Process {
+	pub fn new(kind: ProcessKind, name: &'static str, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
 		Process{
 			id: -1,
 			kind: kind,
@@ -76,7 +55,7 @@ impl Process {
 		}
 	}
 	// INTRプロセスファクトリ
-	pub fn intr(name: &'static str, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: LogCallback) -> Process {
+	pub fn intr(name: &'static str, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
 		Process{
 			id: -1,
 			kind: ProcessKind::INTR,
@@ -97,7 +76,7 @@ impl Process {
 		}
 	}
 	// TASKプロセスファクトリ
-	pub fn task(name: &'static str, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: LogCallback) -> Process {
+	pub fn task(name: &'static str, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
 		Process{
 			id: -1,
 			kind: ProcessKind::TASK,
@@ -272,7 +251,7 @@ impl Process {
 		(self.log_callback)(
 			self.name,
 			self.id,
-			&self.state,
+			self.state,
 			self.log_cpu_time,
 			cpu_time,
 			self.log_cycle_delayed,

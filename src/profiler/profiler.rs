@@ -1,6 +1,8 @@
 use std::collections::{HashMap, LinkedList};
 
-use crate::process::process::{Process, ProcessState};
+use crate::process::process::Process;
+use crate::process::process_state::ProcessState;
+use crate::process::process_callback::ProcessCallback;
 
 
 type BuffContainer = LinkedList<String>;
@@ -27,17 +29,22 @@ impl PlantUML {
 		}
 	}
 
-	pub fn make_header(&mut self, _procs: &Vec<Process>) {
+	pub fn get_body(&mut self) -> BuffContainer {
+		let new_body = BuffContainer::new();
+		std::mem::replace(&mut self.body, new_body)
+	}
+
+	pub fn make_header<T: ProcessCallback>(&mut self, _procs: &Vec<Process<T>>) {
 		// ヘッダ初期化
 		self.header.push_back("@startuml CPUusage".to_string());
 		self.header.push_back("scale 5 as 5 pixels".to_string());
 		for _proc in _procs.iter() {
-			self.header.push_back(format!("robust \"{0}\" as W{0}", _proc.id));
+			self.header.push_back(format!("robust \"{}\" as W{}", _proc.name, _proc.id));
 			self.last_time_proc.insert(_proc.id, -1);
 		}
 	}
 
-	pub fn profile(&mut self, name: &'static str, id: i32, state: &ProcessState, log_cpu_time_begin: i32, log_cpu_time_end: i32, log_cycle_delayed: bool,) {
+	pub fn profile(&mut self, name: &'static str, id: i32, state: ProcessState, log_cpu_time_begin: i32, log_cpu_time_end: i32, log_cycle_delayed: bool,) {
 		// ログ時間チェック
 		// 時間補正:同じプロセス内で時間が重複したら+1して見た目上ずらす
 		let mut fixed_time = log_cpu_time_begin;
