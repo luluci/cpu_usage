@@ -37,7 +37,7 @@ impl ProfileIF
 
 		let tx_clj = |name: &'static str, id: i32, state: ProcessState, begin: i32, end: i32, delayed: bool| {
 			let tx = std::sync::mpsc::Sender::clone(&tx);
-			let mut fut = tx.send((name, id, state, begin, end, delayed));
+			let fut = tx.send((name, id, state, begin, end, delayed));
 		};
 		//let tx_clj = self.make_closure();
 
@@ -59,20 +59,7 @@ impl ProfileIF
 			for data in profiler.header.iter_mut() {
 				println!("{}", data);
 			}
-			// 受信データ解析
-			// while !finish {
-			// 	rcv = rx.recv();
-			// 	if rcv.is_ok() {
-			// 		let data = rcv.unwrap();
-			// 		// プロファイリング
-			// 		profiler.profile(data.0, data.1, data.2, data.3, data.4, data.5);
-			// 		// データを出力
-			// 		let mut buff = profiler.get_body();
-			// 		for body in buff.iter_mut() {
-			// 			println!("{}", body);
-			// 		}
-			// 	}
-			// }
+			// txがすべて破棄されるとrxもループを終了する
 			for data in rx {
 				// プロファイリング
 				profiler.profile(data.0, data.1, data.2, data.3, data.4, data.5);
@@ -88,16 +75,15 @@ impl ProfileIF
 			}
 		};
 
+		// 解析処理を別スレッドに投げる
+		// ファイルI/Oを考えてこうしてるが、チャネルによるメッセージングの方がコスト高い可能性？
 		let rx_thread = std::thread::spawn(rx_clj);
-
+		// メインスレッドでプロセストレース実施
 		tracer.run();
+		// トレース終了したらtxを破棄してワーカースレッド終了
 		drop(tx);
+		// 一応スレッド終了を待機
 		let join_result = rx_thread.join();
 		join_result.unwrap();
-
-/* 		let mut profiler = PlantUML::new();
-		profiler.make_header(&procs_vec);
-		let mut tracer = ProcessTracer::new(procs_vec);
-		tracer.run(); */
 	}
 }
