@@ -39,6 +39,8 @@ impl<T> ProcessTracer<T>
 	pub fn run(&mut self, trace_time: i32) {
 		// 計測時間作成
 		let timemax = trace_time;
+		let mut disp_cycle: i32 = 0;
+		let mut disp_count: i32 = 0;
 		// プロセス初期設定
 		self.start_proc();
 		// 計測時間分のトレース開始
@@ -51,6 +53,14 @@ impl<T> ProcessTracer<T>
 			self.go_time(cpu_time, 1);
 			// CPU使用カウント
 			self.check_cpu_use();
+
+			// 通知メッセージ
+			disp_cycle += 1;
+			if disp_cycle >= 1000000 {
+				disp_count += 1;
+				disp_cycle = 0;
+				println!("{} sec elapsed.", disp_count);
+			}
 		}
 		// CPU占有率計算
 		let runtime = timemax as f32;
