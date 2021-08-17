@@ -36,9 +36,9 @@ impl<T> ProcessTracer<T>
 		data
 	}
 
-	pub fn run(&mut self) {
+	pub fn run(&mut self, trace_time: i32) {
 		// 計測時間作成
-		let timemax = 5 * 1000;
+		let timemax = trace_time;
 		// プロセス初期設定
 		self.start_proc();
 		// 計測時間分のトレース開始

@@ -5,7 +5,6 @@ use crate::process::process::Process;
 use crate::process::process::ProcessKind;
 use crate::process::process_state::ProcessState;
 use crate::process::process_tracer::ProcessTracer;
-use crate::process::process_callback::ProcessCallback;
 use crate::profiler::profiler::PlantUML;
 
 pub struct ProfileIF
@@ -36,9 +35,10 @@ impl ProfileIF
 
 	// }
 
-	pub fn load_process_info<T>(&self, cb: &mut T)
+	pub fn load_process_info<T>(&self, cb: &mut T) -> i32
 		where T: FnMut(ProcessKind, String, i32, bool, i32, Vec<i32>) -> ()
 	{
+		let mut trace_time: i32 = 0;
 		let inp_path = std::path::Path::new(&self.input_file_path);
 		// ファイルを開く
 		use std::fs::File;
@@ -68,46 +68,72 @@ impl ProfileIF
 			}
 		};
 		// 正規表現定義
+		let mut read_mode = 0;
 		let re = Regex::new(r"(\w+)\s+(\w+)\s+(\d+)\s+(\w+)\s+(\d+)((?:\s+(?:\d+))+)").unwrap();
 		let re_time = Regex::new(r"(\d+)").unwrap();
+		let re_trace_info = Regex::new(r"(\d+)").unwrap();
 		//let mut procs_vec = vec![];
 		for result in BufReader::new(file).lines() {
 			if result.is_ok() {
 				let line = result.unwrap();
-				if &line[0..1] == "//" {
+				if &line == "[TraceInfo]" {
+					read_mode = 1;
+				} else if &line == "[ProcessInfo]" {
+					read_mode = 2;
+				} else if (line.len() >= 2) && (&line[0..1] == "//") {
 					// コメントはスキップ
 				} else {
-					// 正規表現でチェック
-					let capture = re.captures(&line);
-					match capture {
-						Some(caps) => {
-							// データ取得
-							let name = caps[1].to_string();
-							let kind = fn_intr_task(&caps[2]);
-							let pri: i32 = caps[3].parse::<i32>().unwrap();
-							let enable = fn_enable(&caps[4]);
-							let cycle: i32 = caps[5].parse::<i32>().unwrap();
-							// 処理時間は複数指定可能
-							let mut time_vec: Vec<i32> = vec![];
-							let time = &caps[6];
-							for mat in re_time.find_iter(time) {
-								time_vec.push(mat.as_str().parse::<i32>().unwrap());
+					match read_mode {
+						1 => {
+							let capture_opt = re_trace_info.captures(&line);
+							match capture_opt {
+								Some(cap) => {
+									trace_time = cap[1].parse::<i32>().unwrap();
+								},
+								None => {
+									//
+								}
 							}
-							//procs_vec.push(Process::new(kind, name, pri, enable, cycle, [100].to_vec(), cb));
-							cb(kind, name, pri, enable, cycle, time_vec);
-						}
-						None => {
-							// 何もしない
+						},
+						2 => {
+							// ProcessInfo取得
+							// 正規表現でチェック
+							let capture = re.captures(&line);
+							match capture {
+								Some(caps) => {
+									// データ取得
+									let name = caps[1].to_string();
+									let kind = fn_intr_task(&caps[2]);
+									let pri: i32 = caps[3].parse::<i32>().unwrap();
+									let enable = fn_enable(&caps[4]);
+									let cycle: i32 = caps[5].parse::<i32>().unwrap();
+									// 処理時間は複数指定可能
+									let mut time_vec: Vec<i32> = vec![];
+									let time = &caps[6];
+									for mat in re_time.find_iter(time) {
+										time_vec.push(mat.as_str().parse::<i32>().unwrap());
+									}
+									//procs_vec.push(Process::new(kind, name, pri, enable, cycle, [100].to_vec(), cb));
+									cb(kind, name, pri, enable, cycle, time_vec);
+								}
+								None => {
+									// 何もしない
+								}
+							}
+						},
+						_ => {
+							// 
 						}
 					}
 				}
 			}
 		}
 
+		trace_time
 	}
 
 	pub fn run(&mut self) {
-		let ( tx, mut rx) = std::sync::mpsc::channel();
+		let ( tx, rx) = std::sync::mpsc::channel();
 
 		// ファイルオープンチェック
 		let out_path = std::path::Path::new(&self.output_file_path);
@@ -121,13 +147,14 @@ impl ProfileIF
 		let tx_clj = |name: &String, id: i32, state: ProcessState, begin: i32, end: i32, delayed: bool| {
 			let tx = std::sync::mpsc::Sender::clone(&tx);
 			let fut = tx.send((name.clone(), id, state, begin, end, delayed));
+
 		};
 		//let tx_clj = self.make_closure();
 		let mut procs_vec = vec![];
 		let mut init_clj = |kind: ProcessKind, name: String, pri: i32, enable: bool, cycle:i32, time: Vec<i32>| {
 			procs_vec.push(Process::new(kind, name, pri, enable, cycle, time, tx_clj));
 		};
-		self.load_process_info(&mut init_clj);
+		let trace_time = self.load_process_info(&mut init_clj);
 
 		// ファイルからプロセス情報をロード
 		//let mut procs_vec :Vec<Process<impl ProcessCallback>> = Vec::new();
@@ -171,7 +198,7 @@ impl ProfileIF
 		// ファイルI/Oを考えてこうしてるが、チャネルによるメッセージングの方がコスト高い可能性？
 		let rx_thread = std::thread::spawn(rx_clj);
 		// メインスレッドでプロセストレース実施
-		tracer.run();
+		tracer.run(trace_time);
 		// トレース終了したらtxを破棄してワーカースレッド終了
 		drop(tx);
 		// 一応スレッド終了を待機
