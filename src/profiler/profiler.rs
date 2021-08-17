@@ -44,7 +44,7 @@ impl PlantUML {
 		}
 	}
 
-	pub fn profile(&mut self, name: &'static str, id: i32, state: ProcessState, log_cpu_time_begin: i32, log_cpu_time_end: i32, log_cycle_delayed: bool,) {
+	pub fn profile(&mut self, name: &String, id: i32, state: ProcessState, log_cpu_time_begin: i32, log_cpu_time_end: i32, log_cycle_delayed: bool,) {
 		// ログ時間チェック
 		// 時間補正:同じプロセス内で時間が重複したら+1して見た目上ずらす
 		let mut fixed_time = log_cpu_time_begin;

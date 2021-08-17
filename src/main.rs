@@ -1,29 +1,43 @@
 
 use cpu_usage::profile_if::ProfileIF;
-/* 
-fn log(name: &'static str, id: i32, state: &ProcessState, log_cpu_time_begin: i32, log_cpu_time_end: i32, log_cycle_delayed: bool,) {
-	let delay = {
-		if log_cycle_delayed {
-			"Delayed!"
-		} else {
-			""
+
+use std::path::Path;
+use std::ffi::OsStr;
+
+fn get_args_in_out() -> (String, String) {
+	//let args: Vec<String> = std::env::args_os().into_iter().map(|arg| arg.to_string_lossy().to_string()).collect();
+	//let args_os: Vec<std::ffi::OsString> = std::env::args_os().collect();
+	//let input = args_os[1].to_string_lossy().to_string();
+	let args: Vec<String> = std::env::args().collect();
+	let input = args[1].clone();
+
+	// Path作成補助クロージャ
+	let fn_opt_path = |opt: Option<&Path>| {
+		match opt {
+			Some(path) => path.display().to_string(),
+			None => "<failed>".to_string(),
 		}
 	};
-	println!("{:6}-{:6} us, [{}] [{}] : {}", log_cpu_time_begin, log_cpu_time_end, state, name, delay)
-} */
+	let fn_opt_osstr = |opt: Option<&OsStr>| {
+		match opt {
+			Some(osstr) => osstr.to_string_lossy().to_string(),
+			None => "<failed>".to_string(),
+		}
+	};
+	// Path作成
+	let input_path = Path::new(&input);
+	let inp_parent = fn_opt_path(input_path.parent());
+	let inp_stem = fn_opt_osstr(input_path.file_stem());
+	let output = format!("{}/{}.plantuml", inp_parent, inp_stem);
+	//let output_path = Path::new(&output);
+
+	return (input, output);
+}
+
 
 fn main() {
-	/*
-	let mut procs_vec :Vec<Process> = Vec::new();
-	procs_vec.push(Process::new(ProcessKind::INTR, "proc1", 1, true, 500, [100].to_vec(), log));
-	procs_vec.push(Process::new(ProcessKind::INTR, "proc2", 2, true, 500, [100].to_vec(), log));
-	let mut profiler = PlantUML::new();
-	profiler.make_header(&procs_vec);
-	let mut tracer = ProcessTracer::new(procs_vec);
-	tracer.run();
-	println!("CPU占有率: {}", tracer.cpu_use_rate);
-	*/
+	let (ip, op) = get_args_in_out();
 
-	let mut profiler = ProfileIF::new("test".to_string());
+	let mut profiler = ProfileIF::new(ip, op);
 	profiler.run();
 }

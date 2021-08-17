@@ -11,10 +11,10 @@ type LogCallback = fn(
 ) -> ();
  */
 
-pub trait ProcessCallback: FnMut(&'static str, i32, ProcessState, i32, i32, bool) -> ()
+pub trait ProcessCallback: FnMut(&String, i32, ProcessState, i32, i32, bool) -> ()
 {}
 
 impl<T> ProcessCallback for T
-	where T: FnMut(&'static str, i32, ProcessState, i32, i32, bool) -> ()
+	where T: FnMut(&String, i32, ProcessState, i32, i32, bool) -> ()
 {}
 

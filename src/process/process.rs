@@ -17,7 +17,7 @@ pub struct Process<T>
 	time_cycle: i32,				// 起動周期
 	time_proc: Vec<i32>,			// 処理時間[Max,Ave1,Ave2,...]
 	time_proc_idx: usize,			// 処理時間選択idx
-	pub name: &'static str,			// プロセス名
+	pub name: String,			// プロセス名
 	// プロセス制御情報
 	state: ProcessState,			// 状態
 	timer_cycle: i32,				// 起動周期タイマ
@@ -34,7 +34,7 @@ impl<T> Process<T>
 	where T: ProcessCallback
 {
 	// コンストラクタ
-	pub fn new(kind: ProcessKind, name: &'static str, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
+	pub fn new(kind: ProcessKind, name: String, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
 		Process{
 			id: -1,
 			kind: kind,
@@ -55,7 +55,7 @@ impl<T> Process<T>
 		}
 	}
 	// INTRプロセスファクトリ
-	pub fn intr(name: &'static str, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
+	pub fn intr(name: String, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
 		Process{
 			id: -1,
 			kind: ProcessKind::INTR,
@@ -76,7 +76,7 @@ impl<T> Process<T>
 		}
 	}
 	// TASKプロセスファクトリ
-	pub fn task(name: &'static str, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
+	pub fn task(name: String, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
 		Process{
 			id: -1,
 			kind: ProcessKind::TASK,
@@ -249,7 +249,7 @@ impl<T> Process<T>
 	fn push_log(&mut self, cpu_time:i32) {
 		// ログを通知
 		(self.log_callback)(
-			self.name,
+			&self.name,
 			self.id,
 			self.state,
 			self.log_cpu_time,
