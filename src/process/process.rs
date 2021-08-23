@@ -23,11 +23,13 @@ pub struct Process<T>
 	timer_cycle: i32,				// 起動周期タイマ
 	pub timer_ready: i32,			// READY時間タイマ
 	timer_run: i32,					// RUNNING時間タイマ
-	cpu_use_rate: f32,				// プロセス占有率:起動周期当たりに占める時間割合
 	// ログ情報
 	log_cpu_time: i32,				// プロセス起動時CPU時間
 	log_cycle_delayed: bool,		// 処理遅延有無
 	log_callback: T,				// ログ生成時のコールバック関数
+	// プロセス毎最大占有率
+	max_cpu_use_rate: f32,			// プロセス占有率:起動周期当たりに占める時間割合
+	max_cpu_time: i32,				// 最大占有率発生時のCPU時間
 }
 
 impl<T> Process<T>
@@ -48,10 +50,12 @@ impl<T> Process<T>
 			timer_cycle: 0,
 			timer_ready: 0,
 			timer_run: 0,
-			cpu_use_rate: 0.0,
 			log_cpu_time: 0,
 			log_cycle_delayed: false,
 			log_callback: cb,
+			// プロセス毎最大占有率
+			max_cpu_use_rate: 0.0,
+			max_cpu_time: 0,
 		}
 	}
 	// INTRプロセスファクトリ
@@ -69,10 +73,12 @@ impl<T> Process<T>
 			timer_cycle: 0,
 			timer_ready: 0,
 			timer_run: 0,
-			cpu_use_rate: 0.0,
 			log_cpu_time: 0,
 			log_cycle_delayed: false,
 			log_callback: cb,
+			// プロセス毎最大占有率
+			max_cpu_use_rate: 0.0,
+			max_cpu_time: 0,
 		}
 	}
 	// TASKプロセスファクトリ
@@ -90,10 +96,12 @@ impl<T> Process<T>
 			timer_cycle: 0,
 			timer_ready: 0,
 			timer_run: 0,
-			cpu_use_rate: 0.0,
 			log_cpu_time: 0,
 			log_cycle_delayed: false,
 			log_callback: cb,
+			// プロセス毎最大占有率
+			max_cpu_use_rate: 0.0,
+			max_cpu_time: 0,
 		}
 	}
 
@@ -164,7 +172,7 @@ impl<T> Process<T>
 				self.time_proc_idx = 0;
 			}
 			// 占有率計算
-			self.calc_cpu_usage();
+			self.calc_cpu_usage(cpu_time);
 			// 状態遷移
 			self.waiting(cpu_time);
 			//
@@ -177,14 +185,15 @@ impl<T> Process<T>
 		// 処理なし
 	}
 
-	fn calc_cpu_usage(&mut self) {
+	fn calc_cpu_usage(&mut self, cpu_time:i32) {
 		// プロセスが有効になっていた時間
 		let active_time = self.timer_run + self.timer_ready;
 		// 起動周期に占める割合＝CPU占有率
 		let userate: f32 = active_time as f32 / self.time_cycle as f32 * 100.0;
 		// 最大CPU占有率を覚えておく
-		if userate > self.cpu_use_rate {
-			self.cpu_use_rate = userate;
+		if userate > self.max_cpu_use_rate {
+			self.max_cpu_use_rate = userate;
+			self.max_cpu_time = cpu_time;
 		}
 	}
 
@@ -259,5 +268,17 @@ impl<T> Process<T>
 		// ログクリア
 		self.log_cpu_time = cpu_time;
 		self.log_cycle_delayed = false;
+	}
+}
+
+impl<T> std::fmt::Display for Process<T>
+	where T: ProcessCallback
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		let mut delay = "".to_string();
+		if self.max_cpu_use_rate > 100.0 {
+			delay = "(delayed!)".to_string();
+		}
+		write!(f, "[{:10}] CPU-userate: {:.1}% (at CPU-time: {:10}) {}", &self.name, &self.max_cpu_use_rate, &self.max_cpu_time, delay)
 	}
 }

@@ -216,4 +216,10 @@ impl<T> ProcessTracer<T>
 			}
 		}
 	}
+
+	pub fn output_proc_result(&mut self) {
+		for proc in self.procs.iter() {
+			println!("{}", proc);
+		}
+	}
 }

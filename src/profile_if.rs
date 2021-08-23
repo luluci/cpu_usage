@@ -199,6 +199,8 @@ impl ProfileIF
 		let rx_thread = std::thread::spawn(rx_clj);
 		// メインスレッドでプロセストレース実施
 		tracer.run(trace_time);
+		// 各プロセスの状況を出力
+		tracer.output_proc_result();
 		// トレース終了したらtxを破棄してワーカースレッド終了
 		drop(tx);
 		// 一応スレッド終了を待機
