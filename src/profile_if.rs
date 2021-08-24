@@ -198,7 +198,10 @@ impl ProfileIF
 		// ファイルI/Oを考えてこうしてるが、チャネルによるメッセージングの方がコスト高い可能性？
 		let rx_thread = std::thread::spawn(rx_clj);
 		// メインスレッドでプロセストレース実施
+		println!(">> trace start.");
 		tracer.run(trace_time);
+		println!(">> trace finish.");
+		println!("");
 		// 各プロセスの状況を出力
 		tracer.output_proc_result();
 		// トレース終了したらtxを破棄してワーカースレッド終了
@@ -206,5 +209,12 @@ impl ProfileIF
 		// 一応スレッド終了を待機
 		let join_result = rx_thread.join();
 		join_result.unwrap();
+
+		{
+			let mut buf = "".to_string();
+			println!("");
+			println!("Press Enter Key:");
+			std::io::stdin().read_line(&mut buf);
+		}
 	}
 }
