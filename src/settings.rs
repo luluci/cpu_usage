@@ -11,18 +11,19 @@ use crate::process::process_tracer::ProcessTracer;
 use once_cell::sync::OnceCell;
 // トレース設定
 /// トレース時間
-static TRACE_TIME: OnceCell<u32> = OnceCell::new();
+pub static TRACE_TIME: OnceCell<i32> = OnceCell::new();
 // PlantUML
+pub static PU_ENABLE: OnceCell<bool> = OnceCell::new();
 /// 出力ファイル分割時間
-static PU_DIVTIME: OnceCell<u32> = OnceCell::new();
+pub static PU_DIVTIME: OnceCell<i32> = OnceCell::new();
 
 
 
 enum LoadState {
 	/// トレース時間定義解析
-	TraceTime,
+	TraceInfo,
 	/// PlantUML:出力ファイル分割時間解析
-	PUDivTime,
+	PlantUML,
 	/// プロセス定義解析
 	ProcessInfo,
 	None,
@@ -30,30 +31,40 @@ enum LoadState {
 
 pub struct Settings
 {
-	/// 設定ファイル
-	input_file_path: String,
+	// 正規表現定義
 	/// Regex: unsignedデータ解析
-	re_time: Regex,
+	re_trace_info: Regex,
+	re_plant_uml: Regex,
 	/// Regex: プロセス定義解析
 	re_process: Regex,
+	re_time: Regex,
+	// 設定ファイルから読みだしてOnceCellに渡すデータ
+	trace_time: i32,
+	pu_enable: bool,
+	pu_divtime: i32,
 }
 
 impl Settings
 {
 
-	pub fn new(input_file_path: String) -> Settings {
+	pub fn new() -> Settings {
+		// Settingsインスタンス作成
 		Settings{
-			input_file_path,
-			re_time: Regex::new(r"(\d+)").unwrap(),
+			re_trace_info: Regex::new(r"(\w+)\s*=\s*(\d+)").unwrap(),
+			re_plant_uml: Regex::new(r"(\w+)\s*=\s*(\w+)").unwrap(),
 			re_process: Regex::new(r"(\w+)\s+(\w+)\s+(\d+)\s+(\w+)\s+(\d+)((?:\s+(?:\d+))+)").unwrap(),
+			re_time: Regex::new(r"(\w+)").unwrap(),
+			trace_time: 0,
+			pu_enable: false,
+			pu_divtime: 0,
 		}
 	}
 
-	pub fn load<T>(&self, cb: &mut T) -> Result<(),String>
+	pub fn load<T>(&mut self, input_file_path: &String, cb: &mut T) -> Result<(),String>
 		where T: FnMut(ProcessKind, String, i32, bool, i32, Vec<i32>) -> ()
 	{
 		// ファイルを開く
-		let inp_path = std::path::Path::new(&self.input_file_path);
+		let inp_path = std::path::Path::new(&input_file_path);
 		use std::fs::File;
 		//use std::error::Error;
 		use std::io::BufReader;
@@ -73,80 +84,20 @@ impl Settings
 					// 空行はスキップ
 				} else if (line.len() >= 2) && (&line[0..1] == "//") {
 					// コメントはスキップ
-				} else if &line[0..0] == "[" {
+				} else if &line[..1] == "[" {
 					// 先頭が[なら設定状態変更
-					state = self.load_process_info_state(&line);
+					state = self.check_load_state(&line);
 				} else {
 					// その他は設定値として解析
 					match state {
-						LoadState::TraceTime => {
-							let capture_opt = self.re_time.captures(&line);
-							match capture_opt {
-								Some(cap) => {
-									// 正規表現がちゃんと定義できていればparseで失敗することはないはず
-									let trace_time = cap[1].parse::<u32>().unwrap();
-									match TRACE_TIME.set(trace_time) {
-										Ok(_) => {
-											// 値がセットできた
-										},
-										Err(_) => {
-											// すでに値が設定済み
-											return Err("TraceTime settings duplicate!".to_string());
-										}
-									}
-								},
-								None => {
-									//
-								}
-							}
+						LoadState::TraceInfo => {
+							self.load_trace_info(&line);
 						},
-						LoadState::PUDivTime => {
-							let capture_opt = self.re_time.captures(&line);
-							match capture_opt {
-								Some(cap) => {
-									// 正規表現がちゃんと定義できていればparseで失敗することはないはず
-									let time = cap[1].parse::<u32>().unwrap();
-									match PU_DIVTIME.set(time) {
-										Ok(_) => {
-											// 値がセットできた
-										},
-										Err(_) => {
-											// すでに値が設定済み
-											return Err("PlantUML DivTime settings duplicate!".to_string());
-										}
-									}
-
-								},
-								None => {
-									//
-								}
-							}
+						LoadState::PlantUML => {
+							self.load_plant_uml(&line);
 						},
 						LoadState::ProcessInfo => {
-							// ProcessInfo取得
-							// 正規表現でチェック
-							let capture = self.re_process.captures(&line);
-							match capture {
-								Some(caps) => {
-									// データ取得
-									let name = caps[1].to_string();
-									let kind = Settings::load_process_intr_task(&caps[2]);
-									let pri: i32 = caps[3].parse::<i32>().unwrap();
-									let enable = Settings::load_process_enable(&caps[4]);
-									let cycle: i32 = caps[5].parse::<i32>().unwrap();
-									// 処理時間は複数指定可能
-									let mut time_vec: Vec<i32> = vec![];
-									let time = &caps[6];
-									for mat in self.re_time.find_iter(time) {
-										time_vec.push(mat.as_str().parse::<i32>().unwrap());
-									}
-									//procs_vec.push(Process::new(kind, name, pri, enable, cycle, [100].to_vec(), cb));
-									cb(kind, name, pri, enable, cycle, time_vec);
-								}
-								None => {
-									// 何もしない
-								}
-							}
+							self.load_process(&line, cb);
 						},
 						LoadState::None => {
 							// Noneは不明な状態なのでスキップ
@@ -156,15 +107,127 @@ impl Settings
 			}
 		}
 
+		// 読み込みが完了したらグローバル変数にセット
+		match TRACE_TIME.set(self.trace_time) {
+			Ok(_) => {}
+			Err(_) => {}
+		}
+		match PU_ENABLE.set(self.pu_enable) {
+			Ok(_) => {}
+			Err(_) => {}
+		}
+		match PU_DIVTIME.set(self.pu_divtime) {
+			Ok(_) => {}
+			Err(_) => {}
+		}
+
 		Ok(())
 	}
 
-	fn load_process_info_state(&self, _text: &str) -> LoadState {
+	fn check_load_state(&mut self, _text: &str) -> LoadState {
 		match _text {
-			"[TraceInfo]"			=> LoadState::TraceTime,
-			"[PlantUML_DivTime]"	=> LoadState::PUDivTime,
-			"[ProcessInfo]"			=> LoadState::ProcessInfo,
-			_						=> panic!("undefined Setting: {}", _text),
+			"[TraceInfo]"		=> LoadState::TraceInfo,
+			"[PlantUML]" => {
+				self.pu_enable = true;
+				LoadState::PlantUML
+			},
+			"[ProcessInfo]"		=> LoadState::ProcessInfo,
+			_					=> panic!("undefined Setting: {}", _text),
+		}
+	}
+
+	fn load_trace_info(&mut self, _text: &str) {
+		let capture_opt = self.re_trace_info.captures(_text);
+		match capture_opt {
+			Some(cap) => {
+				let key = &cap[1];
+				let val = &cap[2];
+				match key {
+					"TraceTime" => {
+						match val.parse::<i32>() {
+							Ok(time) => {
+								self.trace_time = time;
+							},
+							Err(_) => {
+								println!("invalid TraceTime: {}", val);
+							}
+						}
+					}
+					_ => {
+						// 何もしない
+					}
+				}
+			},
+			None => {
+				// マッチしないものはスキップ
+			}
+		}
+	}
+
+	fn load_plant_uml(&mut self, _text: &str) {
+		let capture_opt = self.re_plant_uml.captures(&_text);
+		match capture_opt {
+			Some(cap) => {
+				let key = &cap[1];
+				let val = &cap[2];
+				match key {
+					"Enable" => {
+						match Settings::load_bool(val) {
+							Ok(enable) => {
+								self.pu_enable = enable;
+							},
+							Err(_) => {
+								println!("invalid TraceTime: {}", val);
+							}
+						}
+					}
+					"DivTime" => {
+						match val.parse::<i32>() {
+							Ok(time) => {
+								self.pu_divtime = time;
+							},
+							Err(_) => {
+								println!("invalid TraceTime: {}", val);
+							}
+						}
+					}
+					_ => {
+						// 何もしない
+					}
+				}
+			},
+			None => {
+				//
+			}
+		}
+	}
+
+	pub fn load_process<T>(&mut self, _text: &str, cb: &mut T)
+		where T: FnMut(ProcessKind, String, i32, bool, i32, Vec<i32>) -> ()
+	{
+		// ProcessInfo取得
+		// 正規表現でチェック
+		let capture = self.re_process.captures(&_text);
+		match capture {
+			Some(caps) => {
+				// データ取得
+				let name = caps[1].to_string();
+				let kind = Settings::load_process_intr_task(&caps[2]);
+				let pri: i32 = caps[3].parse::<i32>().unwrap();
+				let enable = Settings::load_process_enable(&caps[4]);
+				let cycle: i32 = caps[5].parse::<i32>().unwrap();
+				// 処理時間は複数指定可能
+				let mut time_vec: Vec<i32> = vec![];
+				let time = &caps[6];
+				for mat in self.re_time.find_iter(time) {
+					time_vec.push(mat.as_str().parse::<i32>().unwrap());
+				}
+				//procs_vec.push(Process::new(kind, name, pri, enable, cycle, [100].to_vec(), cb));
+				cb(kind, name, pri, enable, cycle, time_vec);
+			}
+			None => {
+				// 何もしない
+			}
 		}
 	}
 
@@ -181,6 +244,14 @@ impl Settings
 			"enable" => true,
 			"disable" => false,
 			_ => panic!("invalid enable/disable: {}", text),
+		}
+	}
+
+	fn load_bool(text: &str) -> Result<bool,String> {
+		match text {
+			"true" => Ok(true),
+			"false" => Ok(false),
+			_ => Err(format!("invalid true/false: {}", text)),
 		}
 	}
 
