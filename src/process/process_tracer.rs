@@ -219,8 +219,8 @@ impl<T> ProcessTracer<T>
 
 	pub fn output_proc_result(&mut self) {
 		// 
-		println!("[{:40}]  CPU-userate (occur point  )", "Process Name");
-		println!("------------------------------------------------------------------------");
+		println!("[{:40}] | CPU-userate (occur point  )", "Process Name");
+		println!("-{0:-<40}--+-{0:-<27}-", "");
 		// 
 		for proc in self.procs.iter() {
 			println!("{}", proc);

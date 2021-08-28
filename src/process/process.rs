@@ -279,6 +279,6 @@ impl<T> std::fmt::Display for Process<T>
 		if self.max_cpu_use_rate > 100.0 {
 			delay = "(delayed!)".to_string();
 		}
-		write!(f, "[{:40}] {:11.2}% (at {:10}) {}", &self.name, &self.max_cpu_use_rate, &self.max_cpu_time, delay)
+		write!(f, "[{:40}] | {:10.2}% (at {:10}) {}", &self.name, &self.max_cpu_use_rate, &self.max_cpu_time, delay)
 	}
 }
