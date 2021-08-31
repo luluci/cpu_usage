@@ -71,13 +71,18 @@ impl PlantUML {
 	}
 
 	pub fn make_header<T: ProcessCallback>(&mut self, _procs: &Vec<Process<T>>) {
+		// 初期値設定
+		let mut init_value = BuffContainer::new();
 		// ヘッダ初期化
 		self.header.push_back("@startuml CPUusage".to_string());
 		self.header.push_back("scale 5 as 5 pixels".to_string());
 		for _proc in _procs.iter() {
 			self.header.push_back(format!("robust \"{}\" as W{}", _proc.name, _proc.id));
+			init_value.push_back(format!("W{} is WAITING", _proc.id));
 			self.last_time_proc.insert(_proc.id, -1);
 		}
+		self.header.push_back("".to_string());
+		self.header.append(&mut init_value);
 	}
 
 	fn open_file(&mut self) -> Result<(),String> {
