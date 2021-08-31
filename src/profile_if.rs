@@ -33,8 +33,8 @@ impl ProfileIF
 		};
 		//let tx_clj = self.make_closure();
 		let mut procs_vec = vec![];
-		let mut init_clj = |kind: ProcessKind, name: String, pri: i32, enable: bool, cycle:i32, time: Vec<i32>| {
-			procs_vec.push(Process::new(kind, name, pri, enable, cycle, time, tx_clj));
+		let mut init_clj = |kind: ProcessKind, name: String, state: ProcessState, pri: i32, enable: bool, cycle:i32, time: Vec<i32>| {
+			procs_vec.push(Process::new(kind, name, state, pri, enable, cycle, time, tx_clj));
 		};
 		//let trace_time = self.load_process_info(&mut init_clj);
 		// ファイルから設定を読み出し

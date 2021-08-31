@@ -52,7 +52,7 @@ impl Settings
 		Settings{
 			re_trace_info: Regex::new(r"(\w+)\s*=\s*(\d+)").unwrap(),
 			re_plant_uml: Regex::new(r"(\w+)\s*=\s*(\w+)").unwrap(),
-			re_process: Regex::new(r"(\w+)\s+(\w+)\s+(\d+)\s+(\w+)\s+(\d+)((?:\s+(?:\d+))+)").unwrap(),
+			re_process: Regex::new(r"(\w+)\s+(\w+)\s+(\w+)\s+(\d+)\s+(\w+)\s+(\d+)((?:\s+(?:\d+))+)").unwrap(),
 			re_time: Regex::new(r"(\w+)").unwrap(),
 			trace_time: 0,
 			pu_enable: false,
@@ -61,7 +61,7 @@ impl Settings
 	}
 
 	pub fn load<T>(&mut self, input_file_path: &String, cb: &mut T) -> Result<(),String>
-		where T: FnMut(ProcessKind, String, i32, bool, i32, Vec<i32>) -> ()
+		where T: FnMut(ProcessKind, String, ProcessState, i32, bool, i32, Vec<i32>) -> ()
 	{
 		// ファイルを開く
 		let inp_path = std::path::Path::new(&input_file_path);
@@ -203,7 +203,7 @@ impl Settings
 	}
 
 	pub fn load_process<T>(&mut self, _text: &str, cb: &mut T)
-		where T: FnMut(ProcessKind, String, i32, bool, i32, Vec<i32>) -> ()
+		where T: FnMut(ProcessKind, String, ProcessState, i32, bool, i32, Vec<i32>) -> ()
 	{
 		// ProcessInfo取得
 		// 正規表現でチェック
@@ -213,17 +213,18 @@ impl Settings
 				// データ取得
 				let name = caps[1].to_string();
 				let kind = Settings::load_process_intr_task(&caps[2]);
-				let pri: i32 = caps[3].parse::<i32>().unwrap();
-				let enable = Settings::load_process_enable(&caps[4]);
-				let cycle: i32 = caps[5].parse::<i32>().unwrap();
+				let state = Settings::load_process_state(&caps[3]);
+				let pri: i32 = caps[4].parse::<i32>().unwrap();
+				let enable = Settings::load_process_enable(&caps[5]);
+				let cycle: i32 = caps[6].parse::<i32>().unwrap();
 				// 処理時間は複数指定可能
 				let mut time_vec: Vec<i32> = vec![];
-				let time = &caps[6];
+				let time = &caps[7];
 				for mat in self.re_time.find_iter(time) {
 					time_vec.push(mat.as_str().parse::<i32>().unwrap());
 				}
 				//procs_vec.push(Process::new(kind, name, pri, enable, cycle, [100].to_vec(), cb));
-				cb(kind, name, pri, enable, cycle, time_vec);
+				cb(kind, name, state, pri, enable, cycle, time_vec);
 			}
 			None => {
 				// 何もしない
@@ -235,6 +236,16 @@ impl Settings
 		match text {
 			"INTR" => ProcessKind::INTR,
 			"TASK" => ProcessKind::TASK,
+			_ => panic!("invalid ProcessKind: {}", text),
+		}
+	}
+
+	fn load_process_state(text: &str) -> ProcessState {
+		match text {
+			"WAITING" => ProcessState::WAITING,
+			"READY" => ProcessState::READY,
+			"DORMANT" => panic!("{} is not allowed initial state.", text),
+			"RUNNING" => panic!("{} is not allowed initial state.", text),
 			_ => panic!("invalid ProcessKind: {}", text),
 		}
 	}

@@ -36,7 +36,7 @@ impl<T> Process<T>
 	where T: ProcessCallback
 {
 	// コンストラクタ
-	pub fn new(kind: ProcessKind, name: String, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
+	pub fn new(kind: ProcessKind, name: String, state: ProcessState, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
 		Process{
 			id: -1,
 			kind: kind,
@@ -46,7 +46,7 @@ impl<T> Process<T>
 			time_proc: time_proc,
 			time_proc_idx: 0,
 			name: name,
-			state: ProcessState::DORMANT,
+			state,
 			timer_cycle: 0,
 			timer_ready: 0,
 			timer_run: 0,
@@ -59,7 +59,7 @@ impl<T> Process<T>
 		}
 	}
 	// INTRプロセスファクトリ
-	pub fn intr(name: String, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
+	pub fn intr(name: String, state: ProcessState, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
 		Process{
 			id: -1,
 			kind: ProcessKind::INTR,
@@ -69,7 +69,7 @@ impl<T> Process<T>
 			time_proc: time_proc,
 			time_proc_idx: 0,
 			name: name,
-			state: ProcessState::DORMANT,
+			state,
 			timer_cycle: 0,
 			timer_ready: 0,
 			timer_run: 0,
@@ -82,7 +82,7 @@ impl<T> Process<T>
 		}
 	}
 	// TASKプロセスファクトリ
-	pub fn task(name: String, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
+	pub fn task(name: String, state: ProcessState, priority:i32, multi_intr:bool, time_cycle: i32, time_proc: Vec<i32>, cb: T) -> Process<T> {
 		Process{
 			id: -1,
 			kind: ProcessKind::TASK,
@@ -92,7 +92,7 @@ impl<T> Process<T>
 			time_proc: time_proc,
 			time_proc_idx: 0,
 			name: name,
-			state: ProcessState::DORMANT,
+			state,
 			timer_cycle: 0,
 			timer_ready: 0,
 			timer_run: 0,
@@ -197,6 +197,10 @@ impl<T> Process<T>
 		}
 	}
 
+	pub fn init(&mut self, cpu_time:i32) {
+		// ログ登録
+		self.push_log(cpu_time);
+	}
 
 	pub fn wakeup(&mut self, cpu_time:i32) {
 		// ログ登録

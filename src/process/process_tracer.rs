@@ -44,7 +44,7 @@ impl<T> ProcessTracer<T>
 		// プロセス初期設定
 		self.start_proc();
 		// 計測時間分のトレース開始
-		for cpu_time in 0..timemax {
+		for cpu_time in 1..timemax {
 			// アクティブプロセスの終了チェック
 			self.check_running_proc();
 			// ディスパッチチェック
@@ -69,7 +69,7 @@ impl<T> ProcessTracer<T>
 
 	fn start_proc(&mut self) {
 		for proc in self.procs.iter_mut() {
-			proc.waiting(0);
+			//proc.init(0);
 		}
 	}
 
@@ -202,7 +202,7 @@ impl<T> ProcessTracer<T>
 
 	fn go_time(&mut self, cpu_time:i32, elapse:i32) {
 		for proc in self.procs.iter_mut() {
-			proc.go(cpu_time+1, elapse);
+			proc.go(cpu_time, elapse);
 		}
 	}
 
