@@ -1,6 +1,12 @@
 [TraceInfo]
 //計測時間設定(us)
-60000000
+TraceTime=60000
+
+[PlantUML]
+// PlantUML出力=有効
+Enable=true
+// 指定の時間でファイルを分割する
+DivTime=10000
 
 [ProcessInfo]
 //プロセス名称	TASK/INTR	優先度	多重割込	起動周期(ns)	処理時間1,2,...

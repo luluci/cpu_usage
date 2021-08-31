@@ -54,7 +54,7 @@ impl<T> ProcessTracer<T>
 			// CPU使用カウント
 			self.check_cpu_use();
 
-			// 通知メッセージ
+			// 進捗出力: 1sec経過を通知
 			disp_cycle += 1;
 			if disp_cycle >= 1000000 {
 				disp_count += 1;
@@ -218,12 +218,21 @@ impl<T> ProcessTracer<T>
 	}
 
 	pub fn output_proc_result(&mut self) {
-		// 
+		// キャプション出力
 		println!("[{:40}] | CPU-userate (occur point  )", "Process Name");
 		println!("-{0:-<40}--+-{0:-<27}-", "");
-		// 
+		// 各プロセス情報出力
 		for proc in self.procs.iter() {
 			println!("{}", proc);
 		}
+		// 全体CPU使用率出力
+		let delay: &str;
+		if self.cpu_use_rate > 100.0 {
+			delay = "(delayed!)";
+		} else {
+			delay = "";
+		}
+		println!("-{0:-<40}--+-{0:-<27}-", "");
+		println!("[{:40}] | {:10.2}% {:15} {}", "all", self.cpu_use_rate, "", delay);
 	}
 }
