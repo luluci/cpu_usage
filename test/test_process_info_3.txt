@@ -1,0 +1,19 @@
+[TraceInfo]
+//計測時間設定(us)
+TraceTime=6000
+// マルチタスク設定
+//   true: Preemptive Multitasking    : RTOSがpreemptを管理
+//  false: Nonpreemptive Multitasking : ユーザプログラムがCPU解放する
+TaskUsePreemption=false
+
+[PlantUML]
+// PlantUML出力=有効
+Enable=true
+// 指定の時間でファイルを分割する
+DivTime=0
+
+[ProcessInfo]
+//プロセス名称	TASK/INTR	初期状態	優先度	多重割込	起動周期(us)	処理時間1,2,...
+proc1			INTR		WAITING		101		disable		240				50
+proc2			TASK		WAITING		2		enable		220				50
+proc3			TASK		WAITING		1		enable		200				100

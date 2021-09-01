@@ -20,7 +20,7 @@
                 }
             },
             "args": [
-                "./test/test_process_info_1.txt"
+                "./test/test_process_info_3.txt"
             ],
             "cwd": "${workspaceFolder}"
         },

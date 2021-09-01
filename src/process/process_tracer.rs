@@ -9,6 +9,8 @@ pub struct ProcessTracer<T>
 	pub procs: Vec<Process<T>>,
 	// プロセストレース情報
 	active_proc_idx: Option<usize>,
+	// トレース設定
+	task_use_preempt: bool,
 	// CPU占有率
 	pub cpu_use_rate: f32,
 	cpu_use_busy: i32,
@@ -19,10 +21,11 @@ impl<T> ProcessTracer<T>
 	where T: ProcessCallback
 {
 	// コンストラクタ
-	pub fn new<'a>(procs: Vec<Process<T>>) -> ProcessTracer<T> {
+	pub fn new<'a>(procs: Vec<Process<T>>, task_use_preempt: bool) -> ProcessTracer<T> {
 		let mut data = ProcessTracer {
-			procs: procs,
+			procs,
 			active_proc_idx: None,
+			task_use_preempt,
 			cpu_use_rate: 0.0,
 			cpu_use_busy: 0,
 			cpu_use_idle: 0,
@@ -121,23 +124,13 @@ impl<T> ProcessTracer<T>
 				if active_proc.multi_intr {
 					// 多重割込み許可ならRAEDYプロセスとディスパッチ要否判定
 					//let ready_proc_idx = self.get_prior_ready_proc();
+					// READYプロセスの存在チェック
 					match ready_proc_idx {
 						Some(_ready_proc_idx) => {
+							// RUNNINGプロセスとREADYプロセスを比較してディスパッチ要否を判定
 							let ready_proc= &self.procs[_ready_proc_idx];
-							let mut check = true;
-							// アクティブプロセスが割り込みのとき、タスクは割り込めない
-							if let ProcessKind::TASK = ready_proc.kind {
-								if let ProcessKind::INTR = active_proc.kind {
-									check = false;
-								}
-							}
-							if check {
-								if active_proc.priority >= ready_proc.priority {
-									check = false;
-								}
-							}
 							// ディスパッチ要であればREADYプロセスを選択
-							if check {
+							if self.check_prior_process(&active_proc, &ready_proc) {
 								result = Some(_ready_proc_idx);
 							}
 						},
@@ -153,7 +146,7 @@ impl<T> ProcessTracer<T>
 			},
 			None => {
 				// アクティブプロセスが無ければREADYからプロセス選択
-				result = self.get_prior_ready_proc();
+				result = ready_proc_idx;
 			}
 		}
 		//
@@ -198,6 +191,33 @@ impl<T> ProcessTracer<T>
 		}
 		// 終了
 		result
+	}
+
+	fn check_prior_process(&self, running: &Process<T>, ready: &Process<T>) -> bool
+		where T: ProcessCallback
+	{
+		// アクティブプロセスが割り込みのとき、タスクの割り込み不可
+		if let ProcessKind::TASK = ready.kind {
+			if let ProcessKind::INTR = running.kind {
+				return false;
+			}
+		}
+
+		// READYプロセスの優先度が同じか低いときはディスパッチ不可
+		if running.priority >= ready.priority {
+			return false;
+		}
+
+		// タスクpreemptionが無効の場合はタスク間でのディスパッチ不可
+		if !self.task_use_preempt {
+			if let ProcessKind::TASK = ready.kind {
+				if let ProcessKind::TASK = running.kind {
+					return false;
+				}
+			}
+		}
+
+		true
 	}
 
 	fn go_time(&mut self, cpu_time:i32, elapse:i32) {

@@ -12,6 +12,7 @@ use once_cell::sync::OnceCell;
 // トレース設定
 /// トレース時間
 pub static TRACE_TIME: OnceCell<i32> = OnceCell::new();
+pub static TASK_USE_PREEMPT: OnceCell<bool> = OnceCell::new();
 // PlantUML
 pub static PU_ENABLE: OnceCell<bool> = OnceCell::new();
 /// 出力ファイル分割時間
@@ -39,7 +40,8 @@ pub struct Settings
 	re_process: Regex,
 	re_time: Regex,
 	// 設定ファイルから読みだしてOnceCellに渡すデータ
-	trace_time: i32,
+	trace_time: i32,		// トレース時間
+	task_use_preempt: bool,		// 自動的にpreempt実施するかどうか
 	pu_enable: bool,
 	pu_divtime: i32,
 }
@@ -50,11 +52,12 @@ impl Settings
 	pub fn new() -> Settings {
 		// Settingsインスタンス作成
 		Settings{
-			re_trace_info: Regex::new(r"(\w+)\s*=\s*(\d+)").unwrap(),
+			re_trace_info: Regex::new(r"(\w+)\s*=\s*(\w+)").unwrap(),
 			re_plant_uml: Regex::new(r"(\w+)\s*=\s*(\w+)").unwrap(),
 			re_process: Regex::new(r"(\w+)\s+(\w+)\s+(\w+)\s+(\d+)\s+(\w+)\s+(\d+)((?:\s+(?:\d+))+)").unwrap(),
 			re_time: Regex::new(r"(\w+)").unwrap(),
 			trace_time: 0,
+			task_use_preempt: true,
 			pu_enable: false,
 			pu_divtime: 0,
 		}
@@ -112,6 +115,10 @@ impl Settings
 			Ok(_) => {}
 			Err(_) => {}
 		}
+		match TASK_USE_PREEMPT.set(self.task_use_preempt) {
+			Ok(_) => {}
+			Err(_) => {}
+		}
 		match PU_ENABLE.set(self.pu_enable) {
 			Ok(_) => {}
 			Err(_) => {}
@@ -153,6 +160,16 @@ impl Settings
 							}
 						}
 					}
+					"TaskUsePreemption" => {
+						match Settings::load_bool(val) {
+							Ok(enable) => {
+								self.task_use_preempt = enable;
+							},
+							Err(_) => {
+								println!("invalid TaskUsePreemption: {}", val);
+							}
+						}
+					}
 					_ => {
 						// 何もしない
 					}
@@ -177,7 +194,7 @@ impl Settings
 								self.pu_enable = enable;
 							},
 							Err(_) => {
-								println!("invalid TraceTime: {}", val);
+								println!("invalid bool value: {}", val);
 							}
 						}
 					}
@@ -187,7 +204,7 @@ impl Settings
 								self.pu_divtime = time;
 							},
 							Err(_) => {
-								println!("invalid TraceTime: {}", val);
+								println!("invalid DivTime: {}", val);
 							}
 						}
 					}

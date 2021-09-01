@@ -47,11 +47,12 @@ impl ProfileIF
 			}
 		}
 		let trace_time = *settings::TRACE_TIME.get().unwrap();
+		let task_use_preempt = *settings::TASK_USE_PREEMPT.get().unwrap();
 		let pu_enable = *settings::PU_ENABLE.get().unwrap();
 		let pu_div_time = *settings::PU_DIVTIME.get().unwrap();
 
 		// トレース情報作成
-		let mut tracer = ProcessTracer::new(procs_vec);
+		let mut tracer = ProcessTracer::new(procs_vec, task_use_preempt);
 		let mut profiler_pu;
 		if pu_enable {
 			let mut pu = PlantUML::new(&inp_base, pu_div_time, trace_time);
